@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1055547025451",
+    "project_id": "azurite-2ff57",
+    "storage_bucket": "azurite-2ff57.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1055547025451:android:9878fdb3bb9a615331626e",
+        "android_client_info": {
+          "package_name": "com.example.azurite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEeS1wOpwuhFnBdtEZaIkVzcRECVqja7Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
