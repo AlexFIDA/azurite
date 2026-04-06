@@ -1,3 +1,4 @@
+import 'package:azurite/core/navigation/main_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Добавь это
@@ -63,19 +64,6 @@ class LoginScreen extends ConsumerWidget {
           child: const Text('Войти анонимно'),
         ),
       ),
-    );
-  }
-}
-
-// Временный экран главного меню (наш контейнер)
-class MainShell extends StatelessWidget {
-  const MainShell({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Azurite SuperApp')),
-      body: const Center(child: Text('Ты внутри! Тут будут Финансы и Задачи')),
     );
   }
 }
