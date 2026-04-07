@@ -1,3 +1,4 @@
+import 'package:azurite/features/finance/UI/finance_screen.dart';
 import 'package:azurite/features/todo/UI/todo_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,8 +46,7 @@ class MainShell extends ConsumerWidget {
                     icon: Icons.account_balance_wallet,
                     color: Colors.green,
                     onTap: () {
-                      // Тут позже будет переход в модуль Финансов
-                      print('Переход в финансы');
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const FinanceScreen()));
                     },
                   ),
                   _ModuleCard(
