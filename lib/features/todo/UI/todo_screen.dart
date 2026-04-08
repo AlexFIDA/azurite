@@ -1,51 +1,55 @@
+import 'package:azurite/core/auth/authorization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/todo_repository.dart';
-import '../domain/task_model.dart';
+import 'widgets/todo_drawer.dart';
 
 class TodoScreen extends ConsumerWidget {
   const TodoScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Подписываемся на поток задач
     final tasksAsyncValue = ref.watch(tasksStreamProvider);
+    
+    // Получаем имя пользователя
+    final user = ref.watch(authStateProvider).value;
+    final userName = user?.displayName ?? 'пользователь';
 
     return Scaffold(
+      backgroundColor: Colors.white,
+      drawer: const TodoDrawer(),
       appBar: AppBar(
-        title: const Text('Мои Задачи'),
-        backgroundColor: Colors.blueAccent.withOpacity(0.2),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black87),
+        title: const Text('Сегодня', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_horiz),
+            onPressed: () {},
+          ),
+        ],
       ),
-      // Обрабатываем три состояния потока (загрузка, ошибка, данные)
       body: tasksAsyncValue.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(child: Text('Ошибка: $error')),
         data: (tasks) {
+          // Если задач нет
           if (tasks.isEmpty) {
-            return const Center(child: Text('Пока нет задач. Добавь первую!'));
+            return _buildEmptyState(context, userName);
           }
-          // Рисуем список задач
+          // Если задачи есть
           return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             itemCount: tasks.length,
             itemBuilder: (context, index) {
               final task = tasks[index];
               return CheckboxListTile(
-                title: Text(
-                  task.title,
-                  style: TextStyle(
-                    // Перечеркиваем текст, если задача выполнена
-                    decoration: task.isDone ? TextDecoration.lineThrough : null,
-                    color: task.isDone ? Colors.grey : Colors.black,
-                  ),
-                ),
-                subtitle: task.description.isNotEmpty 
-                    ? Text(task.description) 
-                    : null,
+                title: Text(task.title),
                 value: task.isDone,
-                // При клике на чекбокс дергаем метод обновления в репозитории
-                onChanged: (bool? newValue) {
-                  if (newValue != null) {
-                    ref.read(todoRepositoryProvider).toggleTaskStatus(task.id, newValue);
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(todoRepositoryProvider).toggleTaskStatus(task.id, val);
                   }
                 },
               );
@@ -53,48 +57,55 @@ class TodoScreen extends ConsumerWidget {
           );
         },
       ),
-      // Кнопка добавления новой задачи
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTaskDialog(context, ref),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
-  // Окно для ввода новой задачи
-  void _showAddTaskDialog(BuildContext context, WidgetRef ref) {
-    final titleController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Новая задача'),
-        content: TextField(
-          controller: titleController,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Что нужно сделать?'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final text = titleController.text.trim();
-              if (text.isNotEmpty) {
-                // Создаем объект задачи
-                final newTask = TaskModel(
-                  id: '', // Firebase сам сгенерирует ID при добавлении
-                  title: text,
-                  createdAt: DateTime.now(),
-                );
-                // Отправляем в базу
-                ref.read(todoRepositoryProvider).addTask(newTask);
-                Navigator.pop(context); // Закрываем окно
-              }
+  // Верстка пустого экрана
+  Widget _buildEmptyState(BuildContext context, String userName) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: () {
+              // TODO: Вызвать окно добавления задачи
             },
-            child: const Text('Добавить'),
+            child: Row(
+              children: [
+                Icon(Icons.add, color: Colors.grey.shade400),
+                const SizedBox(width: 8),
+                Text('Добавить задачу', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+              ],
+            ),
+          ),
+          
+          // Расширяющийся контейнер для центрирования картинки
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Заглушка для иллюстрации. Потом заменить на Image.asset('assets/картинка')
+                  Icon(Icons.spa_outlined, size: 120, color: Colors.green.shade200),
+                  const SizedBox(height: 24),
+                  
+                  Text(
+                    'Хорошего дня, $userName.',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  const Text(
+                    'Сегодня вы выполнили 0 задач\nи достигли #TodoistZero!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                  const SizedBox(height: 60), // Приподнимаем контент чуть выше центра
+                ],
+              ),
+            ),
           ),
         ],
       ),
