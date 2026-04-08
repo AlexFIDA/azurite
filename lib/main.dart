@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Добавь это
 import 'firebase_options.dart';
 import 'core/auth/authorization.dart'; 
+import 'core/auth/authorization_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,31 +40,13 @@ class AuthChecker extends ConsumerWidget {
     // Подписываемся на состояние авторизации
     final authState = ref.watch(authStateProvider);
 
-    // .when — это крутая фишка Riverpod для обработки данных из сети
     return authState.when(
       data: (user) {
-        if (user != null) return const MainShell(); // Если вошел — в меню
-        return const LoginScreen(); // Если нет — на экран входа
+        if (user != null) return const MainShell(); 
+        return const AuthScreen();
       },
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, trace) => Scaffold(body: Center(child: Text('Ошибка: $e'))),
-    );
-  }
-}
-
-// Временный экран логина
-class LoginScreen extends ConsumerWidget {
-  const LoginScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () => ref.read(authRepositoryProvider).signInAnonymously(),
-          child: const Text('Войти анонимно'),
-        ),
-      ),
     );
   }
 }
