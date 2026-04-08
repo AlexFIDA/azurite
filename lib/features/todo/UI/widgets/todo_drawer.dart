@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/auth/authorization.dart';
 
 class TodoDrawer extends ConsumerWidget {
-  const TodoDrawer({super.key});
+  final VoidCallback onAddTask;
+  const TodoDrawer({super.key, required this.onAddTask});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -11,14 +12,13 @@ class TodoDrawer extends ConsumerWidget {
     // .value дает нам данные напрямую (без обработки состояний loading/error),
     // так как мы точно знаем, что пользователь авторизован, если он видит этот экран.
     final user = ref.watch(authStateProvider).value;
-    
     // Безопасно извлекаем имя. Если его нет — пишем дефолтное.
     final userName = user?.displayName ?? 'Пользователь';
     // Берем первую букву имени для аватарки
     final initial = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
 
     return Drawer(
-      backgroundColor: Colors.white, // Чистый белый фон в стиле Todoist
+      backgroundColor: Colors.white,
       child: SafeArea(
         child: Column(
           children: [
@@ -27,10 +27,11 @@ class TodoDrawer extends ConsumerWidget {
                 backgroundColor: Colors.pink.shade400,
                 radius: 16,
                 child: Text(
-                  initial, 
+                  initial, // Динамическая буква для аватарки
                   style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
+              //Динамическое имя пользователя, получаемое из провайдера авторизации
               title: Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -47,8 +48,8 @@ class TodoDrawer extends ConsumerWidget {
               leading: const Icon(Icons.add_circle, color: Colors.redAccent),
               title: const Text('Добавить задачу', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500)),
               onTap: () {
-                // Позже привяжем логику добавления
-                Navigator.pop(context); 
+                Navigator.pop(context); // Сначала закрываем сам Drawer
+                onAddTask();            // Затем вызываем функцию открытия панели, которую нам передали!
               },
             ),
             

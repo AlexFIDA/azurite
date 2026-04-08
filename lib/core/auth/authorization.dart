@@ -6,7 +6,7 @@ final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
 });
 
 final authStateProvider = StreamProvider<User?>((ref) {
-  return ref.watch(firebaseAuthProvider).authStateChanges();
+  return ref.watch(firebaseAuthProvider).userChanges();
 });
 
 class AuthRepository {
@@ -16,13 +16,13 @@ class AuthRepository {
   // РЕГИСТРАЦИЯ
   Future<void> signUp(String email, String password, String username) async {
     try {
-      // 1. Создаем пользователя в базе
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      // 2. Обновляем его профиль, добавляя Логин (username)
       await credential.user?.updateDisplayName(username);
+      await credential.user?.reload(); // Обновляем данные пользователя, для отображения имени в приложениях
+
     } catch (e) {
       throw Exception(_handleAuthError(e));
     }
