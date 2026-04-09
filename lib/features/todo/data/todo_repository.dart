@@ -31,15 +31,29 @@ class TodoRepository {
         .collection('tasks');
   }
 
-  // ЧТЕНИЕ: Возвращает поток задач, отсортированный по дате создания (новые сверху)
   Stream<List<TaskModel>> watchTasks() {
-    return _db
-        .orderBy('createdAt', descending: true)
-        .snapshots() // Слушаем базу в реальном времени
-        .map((snapshot) => snapshot.docs
+  return _db
+      .snapshots()
+      .map((snapshot) {
+        final tasks = snapshot.docs
             .map((doc) => TaskModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-            .toList());
-  }
+            .toList();
+        
+        tasks.sort((a, b) {
+          // Сначала по приоритету (1 < 4, поэтому a сравниваем с b)
+          int res = a.priority.compareTo(b.priority);
+          if (res != 0) return res;
+          
+          // Если приоритет одинаковый — по дате (те, что раньше — выше)
+          if (a.dueDate != null && b.dueDate != null) {
+            return a.dueDate!.compareTo(b.dueDate!);
+          }
+          return 0;
+        });
+        
+        return tasks;
+      });
+}
 
   // СОЗДАНИЕ: Отправляем новую задачу в Firebase
   Future<void> addTask(TaskModel task) async {
@@ -54,5 +68,9 @@ class TodoRepository {
   // УДАЛЕНИЕ: Удаляем задачу из базы по ID
   Future<void> deleteTask(String taskId) async {
     await _db.doc(taskId).delete();
+  }
+
+  Future<void> updateTask(TaskModel task) async {
+  await _db.doc(task.id).update(task.toMap());
   }
 }

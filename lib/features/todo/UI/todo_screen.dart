@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/auth/authorization.dart';
 import '../data/todo_repository.dart';
 import 'widgets/todo_drawer.dart';
-import 'widgets/add_task_bottom_sheet.dart'; // НОВОЕ: импорт нашей панели
+import 'widgets/add_task_bottom_sheet.dart';
+import 'task_details_screen.dart';
 
 class TodoScreen extends ConsumerWidget {
   const TodoScreen({super.key});
 
-  // НОВОЕ: Метод вызова панели. Он живет внутри класса TodoScreen.
   void _openAddTaskSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -29,24 +29,25 @@ class TodoScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // НОВОЕ: Передаем метод _openAddTaskSheet в наш Drawer
       drawer: TodoDrawer(
         onAddTask: () => _openAddTaskSheet(context),
-      ), 
+      ),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text('Сегодня', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Сегодня',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
         actions: [
-          // НОВОЕ: Кнопка ПЛЮС в верхнем правом углу (как альтернатива)
           IconButton(
             icon: const Icon(Icons.add, color: Colors.redAccent),
             onPressed: () => _openAddTaskSheet(context),
           ),
           IconButton(
             icon: const Icon(Icons.more_horiz),
-            onPressed: () {}, 
+            onPressed: () {},
           ),
         ],
       ),
@@ -57,26 +58,52 @@ class TodoScreen extends ConsumerWidget {
           if (tasks.isEmpty) {
             return _buildEmptyState(context, userName);
           }
-          
+
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
             itemCount: tasks.length,
             itemBuilder: (context, index) {
               final task = tasks[index];
-              return CheckboxListTile(
-                title: Text(task.title),
-                value: task.isDone,
-                onChanged: (val) {
-                  if (val != null) {
-                    ref.read(todoRepositoryProvider).toggleTaskStatus(task.id, val);
-                  }
+              return ListTile(
+                leading: Checkbox(
+                  value: task.isDone,
+                  activeColor: Colors.grey,
+                  shape: const CircleBorder(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      ref
+                          .read(todoRepositoryProvider)
+                          .toggleTaskStatus(task.id, val);
+                    }
+                  },
+                ),
+                title: Text(
+                  task.title,
+                  style: TextStyle(
+                    decoration: task.isDone ? TextDecoration.lineThrough : null,
+                    color: task.isDone ? Colors.grey : Colors.black87,
+                  ),
+                ),
+                subtitle: task.description.isNotEmpty
+                    ? Text(
+                        task.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : null,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TaskDetailsScreen(task: task),
+                    ),
+                  );
                 },
               );
             },
           );
         },
       ),
-      // НОВОЕ: Плавающая кнопка внизу справа (удобно тянуться пальцем, если список длинный)
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.redAccent,
         shape: const CircleBorder(),
@@ -93,18 +120,19 @@ class TodoScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 16),
-          // НОВОЕ: Вызываем панель при клике на текст "Добавить задачу"
           InkWell(
             onTap: () => _openAddTaskSheet(context),
             child: Row(
               children: [
                 Icon(Icons.add, color: Colors.grey.shade400),
                 const SizedBox(width: 8),
-                Text('Добавить задачу', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+                Text(
+                  'Добавить задачу',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                ),
               ],
             ),
           ),
-          
           Expanded(
             child: Center(
               child: Column(
@@ -114,11 +142,15 @@ class TodoScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                   Text(
                     'Хорошего дня, $userName.',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Сегодня вы выполнили 0 задач\nи достигли #TodoistZero!',
+                    'Сегодня вы выполнили 0 задач',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),

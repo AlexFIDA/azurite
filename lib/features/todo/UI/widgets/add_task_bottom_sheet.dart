@@ -15,6 +15,10 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
   final _descController = TextEditingController();
   final _focusNode = FocusNode();
 
+  // НОВЫЕ ПЕРЕМЕННЫЕ СОСТОЯНИЯ
+  DateTime? _selectedDate;
+  int _selectedPriority = 4; // По умолчанию приоритет обычный (4)
+
   @override
   void initState() {
     super.initState();
@@ -31,19 +35,56 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
     super.dispose();
   }
 
+  // НОВЫЙ МЕТОД: Выбор даты
+  Future<void> _selectDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.redAccent, // Цвет в стиле Todoist
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  // Вспомогательный метод для определения цвета флажка
+  Color _getPriorityColor(int priority) {
+    switch (priority) {
+      case 1: return Colors.red;
+      case 2: return Colors.orange;
+      case 3: return Colors.blue;
+      default: return Colors.grey;
+    }
+  }
+
   void _submitTask() {
     final title = _titleController.text.trim();
     if (title.isEmpty) return;
 
+    // НОВОЕ: Передаем дату и приоритет в модель
     final newTask = TaskModel(
       id: '', 
       title: title,
       description: _descController.text.trim(),
       createdAt: DateTime.now(),
+      dueDate: _selectedDate,
+      priority: _selectedPriority,
     );
 
     ref.read(todoRepositoryProvider).addTask(newTask);
-    
     Navigator.pop(context);
   }
 
@@ -81,19 +122,52 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Dыбор даты и приоритета. Надо будет еще сделать
               Row(
                 children: [
-                  IconButton(
-                    onPressed: () {}, 
-                    icon: const Icon(Icons.calendar_today_outlined, color: Colors.grey),
+                  // КНОПКА ДАТЫ
+                  ActionChip(
+                    avatar: Icon(Icons.calendar_today_outlined, size: 16, color: _selectedDate != null ? Colors.green : Colors.grey),
+                    label: Text(
+                      _selectedDate != null 
+                          // Форматируем дату вручную (дд.мм)
+                          ? '${_selectedDate!.day.toString().padLeft(2, '0')}.${_selectedDate!.month.toString().padLeft(2, '0')}'
+                          : 'Сегодня',
+                      style: TextStyle(color: _selectedDate != null ? Colors.green : Colors.grey),
+                    ),
+                    backgroundColor: Colors.transparent,
+                    side: BorderSide(color: Colors.grey.shade300),
+                    onPressed: () => _selectDate(context),
                   ),
-                  IconButton(
-                    onPressed: () {}, 
-                    icon: const Icon(Icons.flag_outlined, color: Colors.grey),
+                  const SizedBox(width: 8),
+
+                  // КНОПКА ПРИОРИТЕТА (Вызов всплывающего меню)
+                  PopupMenuButton<int>(
+                    initialValue: _selectedPriority,
+                    onSelected: (value) => setState(() => _selectedPriority = value),
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 1, child: Row(children: [Icon(Icons.flag, color: Colors.red), SizedBox(width: 8), Text('Приоритет 1')])),
+                      const PopupMenuItem(value: 2, child: Row(children: [Icon(Icons.flag, color: Colors.orange), SizedBox(width: 8), Text('Приоритет 2')])),
+                      const PopupMenuItem(value: 3, child: Row(children: [Icon(Icons.flag, color: Colors.blue), SizedBox(width: 8), Text('Приоритет 3')])),
+                      const PopupMenuItem(value: 4, child: Row(children: [Icon(Icons.flag_outlined, color: Colors.grey), SizedBox(width: 8), Text('Приоритет 4')])),
+                    ],
+                    child: ActionChip(
+                      avatar: Icon(
+                        _selectedPriority == 4 ? Icons.flag_outlined : Icons.flag, 
+                        size: 16, 
+                        color: _getPriorityColor(_selectedPriority)
+                      ),
+                      label: Text(
+                        'P$_selectedPriority',
+                        style: TextStyle(color: _getPriorityColor(_selectedPriority)),
+                      ),
+                      backgroundColor: Colors.transparent,
+                      side: BorderSide(color: Colors.grey.shade300),
+                      onPressed: null, // Нажатие обрабатывает PopupMenuButton
+                    ),
                   ),
                 ],
               ),
+              // КНОПКА ОТПРАВКИ
               IconButton.filled(
                 onPressed: _submitTask,
                 style: IconButton.styleFrom(backgroundColor: Colors.redAccent),
