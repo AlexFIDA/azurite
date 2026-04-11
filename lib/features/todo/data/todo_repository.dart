@@ -19,8 +19,35 @@ final todoRepositoryProvider = Provider<TodoRepository>((ref) {
 });
 
 // Поток задач
+// Находим tasksStreamProvider и заменяем его на этот код:
 final tasksStreamProvider = StreamProvider.autoDispose<List<TaskModel>>((ref) {
-  return ref.watch(todoRepositoryProvider).watchTasks();
+  final repository = ref.watch(todoRepositoryProvider);
+  
+  // 1. Слушаем текущий фильтр (сегодня, входящие или ID проекта)
+  final filter = ref.watch(selectedProjectFilterProvider);
+
+  // 2. Получаем поток ВСЕХ задач из репозитория
+  return repository.watchTasks().map((tasks) {
+    
+    // 3. Если выбран фильтр "Сегодня"
+    if (filter == 'today') {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      
+      return tasks.where((task) {
+        if (task.isDone) return false; // В "Сегодня" обычно не показывают выполненные
+        if (task.dueDate == null) return false;
+        
+        // Сравниваем только даты (без учета часов и минут)
+        final taskDate = DateTime(task.dueDate!.year, task.dueDate!.month, task.dueDate!.day);
+        return taskDate.isAtSameMomentAs(today) || taskDate.isBefore(today);
+      }).toList();
+    } 
+    
+    // 4. Если выбран "Входящие" или конкретный проект
+    // (filter в этом случае будет равен либо 'inbox', либо ID проекта из Firebase)
+    return tasks.where((task) => task.projectId == filter).toList();
+  });
 });
 
 // Поток проектов

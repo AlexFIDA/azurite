@@ -26,6 +26,20 @@ class TodoScreen extends ConsumerWidget {
     final tasksAsyncValue = ref.watch(tasksStreamProvider);
     final user = ref.watch(authStateProvider).value;
     final userName = user?.displayName ?? 'пользователь';
+    final filter = ref.watch(selectedProjectFilterProvider);
+    final projects = ref.watch(projectsStreamProvider).value ?? [];
+
+    String title = 'Сегодня';
+    if (filter == 'inbox') {
+       title = 'Входящие';
+    } else if (filter != 'today') {
+    // Пытаемся найти имя проекта в списке загруженных проектов
+    try {
+      title = projects.firstWhere((p) => p.id == filter).name;
+    } catch (_) {
+      title = 'Проект';
+    }
+  }
 
     return Scaffold(
       backgroundColor: Colors.white,
