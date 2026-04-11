@@ -63,6 +63,9 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1055547025451',
     projectId: 'azurite-2ff57',
     storageBucket: 'azurite-2ff57.firebasestorage.app',
+    androidClientId: '1055547025451-i6e9l3roe63hp44vmjrg9js8p0qo1gts.apps.googleusercontent.com',
+    iosClientId: '1055547025451-1abf47orfpg4pgsb7f3qkuob4372jr4q.apps.googleusercontent.com',
     iosBundleId: 'com.example.azurite',
   );
+
 }

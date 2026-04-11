@@ -12,35 +12,31 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  // НОВОЕ: Контроллер для подтверждения пароля
   final _confirmPasswordController = TextEditingController();
   final _usernameController = TextEditingController();
 
   bool _isLogin = true;
   bool _isLoading = false;
   
-  // НОВОЕ: Переменная для хранения текста ошибки пароля
   String? _passwordError;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose(); // Не забываем очищать память!
+    _confirmPasswordController.dispose(); 
     _usernameController.dispose();
     super.dispose();
   }
 
-  // НОВОЕ: Метод для проверки надежности пароля
   String? _validatePassword(String password) {
-    if (password.isEmpty) return null; // Не ругаемся на пустое поле
+    if (password.isEmpty) return null; 
     if (password.length < 5) return 'Минимум 5 символов';
     if (!password.contains(RegExp(r'[a-zA-Zа-яА-Я]'))) return 'Добавьте хотя бы одну букву';
     if (!password.contains(RegExp(r'[0-9]'))) return 'Добавьте хотя бы одну цифру';
-    // Проверка на спецсимволы (всё, что не буква и не цифра)
     if (!password.contains(RegExp(r'[^a-zA-Z0-9а-яА-Я]'))) return 'Добавьте спецсимвол (например, @, !, _)';
     
-    return null; // Если дошли сюда — пароль идеален!
+    return null; 
   }
 
   Future<void> _submit() async {
@@ -49,7 +45,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final confirmPassword = _confirmPasswordController.text.trim();
     final username = _usernameController.text.trim();
 
-    // Базовая проверка на пустоту
     if (email.isEmpty || password.isEmpty || (!_isLogin && (username.isEmpty || confirmPassword.isEmpty))) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Заполните все поля!')),
@@ -57,7 +52,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       return;
     }
 
-    // НОВОЕ: Специфичные проверки для регистрации
     if (!_isLogin) {
       if (_passwordError != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -131,7 +125,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                // НОВОЕ: "Слушаем" каждое нажатие клавиши
                 onChanged: (value) {
                   if (!_isLogin) {
                     setState(() {
@@ -143,13 +136,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   labelText: 'Пароль',
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.lock),
-                  // НОВОЕ: Показываем ошибку прямо под полем
                   errorText: !_isLogin ? _passwordError : null,
                 ),
               ),
               const SizedBox(height: 16),
 
-              // НОВОЕ: Поле подтверждения пароля (только для регистрации)
               if (!_isLogin) ...[
                 TextField(
                   controller: _confirmPasswordController,
@@ -177,6 +168,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Кнопка переключения режима
               TextButton(
                 onPressed: () {
                   setState(() {
@@ -189,6 +181,49 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 child: Text(_isLogin 
                     ? 'Нет аккаунта? Зарегистрируйтесь' 
                     : 'Уже есть аккаунт? Войти'),
+              ),
+
+              const SizedBox(height: 24),
+              
+              // Разделитель
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('ИЛИ', style: TextStyle(color: Colors.grey)),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Кнопка Google
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading 
+                      ? null 
+                      : () async {
+                          setState(() => _isLoading = true);
+                          try {
+                            await ref.read(authRepositoryProvider).signInWithGoogle();
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+                            );
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
+                  icon: const Text('G', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue)),
+                  label: const Text('Войти через Google', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
               ),
             ],
           ),
