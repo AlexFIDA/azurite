@@ -14,26 +14,92 @@ class TaskDetailsScreen extends ConsumerStatefulWidget {
 class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
   late TextEditingController _titleController;
   late TextEditingController _descController;
+  
+  // Состояния для динамических полей
+  DateTime? _dueDate;
+  int _priority = 4;
+  String _projectId = 'inbox';
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.task.title);
     _descController = TextEditingController(text: widget.task.description);
+    
+    // Инициализируем локальное состояние данными из задачи
+    _dueDate = widget.task.dueDate;
+    _priority = widget.task.priority;
+    _projectId = widget.task.projectId;
   }
 
-  // Метод для сохранения изменений
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  // Общий метод сохранения
   void _save() {
     final updatedTask = widget.task.copyWith(
       title: _titleController.text,
       description: _descController.text,
+      dueDate: _dueDate,
+      priority: _priority,
+      projectId: _projectId,
     );
-    // Здесь нам понадобится метод updateTask в репозитории (добавим ниже)
     ref.read(todoRepositoryProvider).updateTask(updatedTask);
+  }
+
+  // Логика выбора даты
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dueDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() => _dueDate = picked);
+      _save();
+    }
+  }
+
+  // Красивое форматирование даты для лейбла
+  String _getDateLabel() {
+    if (_dueDate == null) return 'Установить дату';
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected = DateTime(_dueDate!.year, _dueDate!.month, _dueDate!.day);
+
+    if (selected == today) return 'Сегодня';
+    if (selected == today.add(const Duration(days: 1))) return 'Завтра';
+    
+    return "${selected.day}.${selected.month}.${selected.year}";
+  }
+
+  Color _getPriorityColor(int p) {
+    switch (p) {
+      case 1: return Colors.red;
+      case 2: return Colors.orange;
+      case 3: return Colors.blue;
+      default: return Colors.grey;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final projects = ref.watch(projectsStreamProvider).value ?? [];
+    
+    // Определяем имя текущего проекта
+    String projectName = 'Входящие';
+    if (_projectId != 'inbox') {
+      try {
+        projectName = projects.firstWhere((p) => p.id == _projectId).name;
+      } catch (_) {}
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -44,7 +110,6 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.archive_outlined), onPressed: () {}),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red),
             onPressed: () {
@@ -62,43 +127,78 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Название без рамок
                   TextField(
                     controller: _titleController,
                     onChanged: (_) => _save(),
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                     decoration: const InputDecoration(border: InputBorder.none, hintText: 'Название'),
                   ),
-                  // Описание
                   TextField(
                     controller: _descController,
                     onChanged: (_) => _save(),
-                    maxLines: null, // Авто-высота
+                    maxLines: null,
                     style: const TextStyle(fontSize: 16),
                     decoration: const InputDecoration(border: InputBorder.none, hintText: 'Описание'),
                   ),
                   const SizedBox(height: 20),
                   
-                  // Ряд кнопок как на скрине
+                  // СЕКЦИЯ КНОПОК
                   Wrap(
                     spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      _ActionChip(icon: Icons.calendar_today, label: 'Сегодня', color: Colors.green),
-                      _ActionChip(icon: Icons.flag_outlined, label: 'Приоритет', color: Colors.grey),
-                      _ActionChip(icon: Icons.alarm, label: 'Напоминания', color: Colors.grey),
+                      // Кнопка даты
+                      _ActionChip(
+                        icon: Icons.calendar_today, 
+                        label: _getDateLabel(), 
+                        color: _dueDate != null ? Colors.green : Colors.grey,
+                        onTap: _pickDate,
+                      ),
+                      // Кнопка приоритета
+                      PopupMenuButton<int>(
+                        onSelected: (val) {
+                          setState(() => _priority = val);
+                          _save();
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(value: 1, child: Text('Приоритет 1')),
+                          const PopupMenuItem(value: 2, child: Text('Приоритет 2')),
+                          const PopupMenuItem(value: 3, child: Text('Приоритет 3')),
+                          const PopupMenuItem(value: 4, child: Text('Приоритет 4')),
+                        ],
+                        child: _ActionChip(
+                          icon: Icons.flag_outlined, 
+                          label: 'P$_priority', 
+                          color: _getPriorityColor(_priority),
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
           ),
-          // Нижняя панель с выбором проекта (Входящие)
+          
           const Divider(),
-          ListTile(
-            leading: const Icon(Icons.inbox, color: Colors.blue),
-            title: const Text('Входящие'),
-            trailing: const Icon(Icons.arrow_drop_down),
-            onTap: () {},
+          
+          // НИЖНИЙ ВЫБОР ПРОЕКТА
+          PopupMenuButton<String>(
+            onSelected: (id) {
+              setState(() => _projectId = id);
+              _save();
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'inbox', child: Text('📥 Входящие')),
+              ...projects.map((p) => PopupMenuItem(value: p.id, child: Text('# ${p.name}'))),
+            ],
+            child: ListTile(
+              leading: Icon(
+                _projectId == 'inbox' ? Icons.inbox : Icons.list_alt, 
+                color: Colors.blue
+              ),
+              title: Text(projectName),
+              trailing: const Icon(Icons.arrow_drop_down),
+            ),
           ),
         ],
       ),
@@ -106,29 +206,34 @@ class _TaskDetailsScreenState extends ConsumerState<TaskDetailsScreen> {
   }
 }
 
-// Маленький вспомогательный виджет для кнопок-чипов
+// Обновленный виджет чипа (теперь с поддержкой нажатия)
 class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final VoidCallback? onTap;
 
-  const _ActionChip({required this.icon, required this.label, required this.color});
+  const _ActionChip({required this.icon, required this.label, required this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: color, fontSize: 13)),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }

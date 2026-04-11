@@ -15,17 +15,20 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
   final _descController = TextEditingController();
   final _focusNode = FocusNode();
 
-  // Состояние выбранного проекта (по умолчанию 'inbox')
   String _selectedProjectId = 'inbox';
+  DateTime? _selectedDate; // Состояние для даты
+  int _priority = 4;        // Состояние для приоритета (1 - макс, 4 - мин)
 
   @override
   void initState() {
     super.initState();
-    // Небольшой лайфхак: если пользователь уже находится внутри какого-то проекта,
-    // логично сразу предложить ему этот проект для новой задачи.
     final currentFilter = ref.read(selectedProjectFilterProvider);
     if (currentFilter != 'today' && currentFilter != 'inbox') {
       _selectedProjectId = currentFilter;
+    }
+    // Если мы в фильтре "Сегодня", логично сразу ставить сегодняшнюю дату
+    if (currentFilter == 'today') {
+      _selectedDate = DateTime.now();
     }
     
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -33,14 +36,17 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
     });
   }
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descController.dispose();
-    _focusNode.dispose();
-    super.dispose();
+  // Метод выбора даты
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
   }
-  
+
   void _submitTask() {
     final title = _titleController.text.trim();
     if (title.isEmpty) return;
@@ -50,7 +56,9 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
       title: title,
       description: _descController.text.trim(),
       createdAt: DateTime.now(),
-      projectId: _selectedProjectId, // Используем выбранный ID
+      projectId: _selectedProjectId,
+      dueDate: _selectedDate, // Передаем дату
+      priority: _priority,    // Передаем приоритет
     );
 
     ref.read(todoRepositoryProvider).addTask(newTask);
@@ -59,14 +67,11 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // Получаем список проектов для выпадающего списка
     final projectsAsync = ref.watch(projectsStreamProvider);
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 20, 
-        right: 20, 
-        top: 20, 
+        left: 20, right: 20, top: 20, 
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       child: Column(
@@ -76,27 +81,19 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
           TextField(
             controller: _titleController,
             focusNode: _focusNode,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            decoration: const InputDecoration(
-              hintText: 'Название задачи',
-              border: InputBorder.none,
-            ),
+            decoration: const InputDecoration(hintText: 'Название задачи', border: InputBorder.none),
           ),
           TextField(
             controller: _descController,
-            style: const TextStyle(fontSize: 14),
-            decoration: const InputDecoration(
-              hintText: 'Описание',
-              border: InputBorder.none,
-            ),
+            decoration: const InputDecoration(hintText: 'Описание', border: InputBorder.none),
           ),
           const SizedBox(height: 12),
           
-          // СЕЛЕКТОР ПРОЕКТА
+          // Выбор проекта (уже был)
           projectsAsync.when(
             data: (projects) => _buildProjectPicker(projects),
-            loading: () => const LinearProgressIndicator(),
-            error: (_, __) => const Text('Ошибка загрузки проектов'),
+            loading: () => const SizedBox(),
+            error: (_, __) => const SizedBox(),
           ),
 
           const SizedBox(height: 16),
@@ -105,13 +102,28 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
             children: [
               Row(
                 children: [
+                  // КНОПКА ДАТЫ
                   IconButton(
-                    onPressed: () {}, 
-                    icon: const Icon(Icons.calendar_today_outlined, color: Colors.grey),
+                    onPressed: _pickDate, 
+                    icon: Icon(
+                      Icons.calendar_today_outlined, 
+                      color: _selectedDate != null ? Colors.blue : Colors.grey
+                    ),
                   ),
-                  IconButton(
-                    onPressed: () {}, 
-                    icon: const Icon(Icons.flag_outlined, color: Colors.grey),
+                  // ВЫБОР ПРИОРИТЕТА
+                  PopupMenuButton<int>(
+                    initialValue: _priority,
+                    onSelected: (val) => setState(() => _priority = val),
+                    icon: Icon(
+                      Icons.flag_outlined, 
+                      color: _getPriorityColor(_priority)
+                    ),
+                    itemBuilder: (context) => [
+                      _priorityItem(1, 'Приоритет 1', Colors.red),
+                      _priorityItem(2, 'Приоритет 2', Colors.orange),
+                      _priorityItem(3, 'Приоритет 3', Colors.blue),
+                      _priorityItem(4, 'Приоритет 4', Colors.grey),
+                    ],
                   ),
                 ],
               ),
@@ -127,9 +139,29 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
     );
   }
 
-  // Виджет выбора проекта (PopupMenuButton — это лаконично и удобно)
+  PopupMenuItem<int> _priorityItem(int value, String text, Color color) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(Icons.flag, color: color, size: 20),
+          const SizedBox(width: 10),
+          Text(text),
+        ],
+      ),
+    );
+  }
+
+  Color _getPriorityColor(int p) {
+    switch(p) {
+      case 1: return Colors.red;
+      case 2: return Colors.orange;
+      case 3: return Colors.blue;
+      default: return Colors.grey;
+    }
+  }
+
   Widget _buildProjectPicker(List projects) {
-    // Находим имя текущего выбранного проекта для отображения на кнопке
     String currentProjectName = 'Входящие';
     if (_selectedProjectId != 'inbox') {
       try {
@@ -141,26 +173,12 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
       onSelected: (id) => setState(() => _selectedProjectId = id),
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'inbox', child: Text('📥 Входящие')),
-        ...projects.map((p) => PopupMenuItem(
-          value: p.id,
-          child: Text('# ${p.name}'),
-        )),
+        ...projects.map((p) => PopupMenuItem(value: p.id, child: Text('# ${p.name}'))),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.list, size: 16, color: Colors.grey.shade600),
-            const SizedBox(width: 8),
-            Text(currentProjectName, style: TextStyle(color: Colors.grey.shade700)),
-            const Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
-          ],
-        ),
+        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+        child: Text(currentProjectName, style: TextStyle(color: Colors.grey.shade700)),
       ),
     );
   }

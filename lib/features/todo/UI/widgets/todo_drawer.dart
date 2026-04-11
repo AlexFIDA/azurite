@@ -4,11 +4,8 @@ import '../../../../core/auth/authorization.dart';
 import '../../data/todo_repository.dart';
 
 class TodoDrawer extends ConsumerWidget {
-  final VoidCallback onAddTask;
+  const TodoDrawer({super.key}); // Убрали коллбек onAddTask из конструктора
 
-  const TodoDrawer({super.key, required this.onAddTask});
-
-  // Метод для вызова окна создания проекта
   void _showAddProjectDialog(BuildContext context, WidgetRef ref) {
     final nameController = TextEditingController();
     
@@ -30,7 +27,6 @@ class TodoDrawer extends ConsumerWidget {
             onPressed: () {
               final text = nameController.text.trim();
               if (text.isNotEmpty) {
-                // Создаем проект (пока используем серый цвет по умолчанию)
                 ref.read(todoRepositoryProvider).addProject(text, 0xFF9E9E9E);
                 Navigator.pop(context);
               }
@@ -48,9 +44,7 @@ class TodoDrawer extends ConsumerWidget {
     final userName = user?.displayName ?? 'Пользователь';
     final initial = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
 
-    // 1. Получаем текущий выбранный фильтр (где мы сейчас находимся?)
     final currentFilter = ref.watch(selectedProjectFilterProvider);
-    // 2. Слушаем поток проектов из Firebase
     final projectsAsync = ref.watch(projectsStreamProvider);
 
     return Drawer(
@@ -58,7 +52,6 @@ class TodoDrawer extends ConsumerWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // Шапка профиля
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: Colors.pink.shade400,
@@ -72,24 +65,14 @@ class TodoDrawer extends ConsumerWidget {
             ),
             const Divider(height: 1),
             
-            // Кнопка добавления задачи
-            ListTile(
-              leading: const Icon(Icons.add_circle, color: Colors.redAccent),
-              title: const Text('Добавить задачу', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500)),
-              onTap: () {
-                Navigator.pop(context); 
-                onAddTask();            
-              },
-            ),
+            // УБРАЛИ КНОПКУ "ДОБАВИТЬ ЗАДАЧУ" ОТСЮДА
             
-            // Основные списки
             ListTile(
               leading: Icon(Icons.inbox, color: currentFilter == 'inbox' ? Colors.blue : Colors.blue.shade200),
               title: const Text('Входящие'),
               selected: currentFilter == 'inbox',
               selectedTileColor: Colors.grey.shade100,
               onTap: () {
-                // Меняем глобальное состояние на 'inbox'
                 ref.read(selectedProjectFilterProvider.notifier).state = 'inbox';
                 Navigator.pop(context);
               },
@@ -100,7 +83,6 @@ class TodoDrawer extends ConsumerWidget {
               selected: currentFilter == 'today',
               selectedTileColor: Colors.grey.shade100,
               onTap: () {
-                // Меняем глобальное состояние на 'today'
                 ref.read(selectedProjectFilterProvider.notifier).state = 'today';
                 Navigator.pop(context);
               },
@@ -108,7 +90,6 @@ class TodoDrawer extends ConsumerWidget {
             
             const Divider(),
             
-            // Заголовок секции проектов с кнопкой "+"
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Row(
@@ -125,32 +106,21 @@ class TodoDrawer extends ConsumerWidget {
               ),
             ),
             
-            // Динамический список проектов
             Expanded(
               child: projectsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, st) => Center(child: Text('Ошибка: $e')),
                 data: (projects) {
-                  if (projects.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('Нет проектов', style: TextStyle(color: Colors.grey)),
-                    );
-                  }
-                  
                   return ListView.builder(
                     itemCount: projects.length,
                     itemBuilder: (context, index) {
                       final project = projects[index];
-                      final isSelected = currentFilter == project.id;
-                      
                       return ListTile(
                         leading: Text('#', style: TextStyle(fontSize: 20, color: Color(project.colorValue))),
                         title: Text(project.name),
-                        selected: isSelected,
+                        selected: currentFilter == project.id,
                         selectedTileColor: Colors.grey.shade100,
                         onTap: () {
-                          // При нажатии на проект, меняем фильтр на его ID
                           ref.read(selectedProjectFilterProvider.notifier).state = project.id;
                           Navigator.pop(context);
                         },

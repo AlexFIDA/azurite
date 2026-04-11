@@ -9,6 +9,20 @@ import 'task_details_screen.dart';
 class TodoScreen extends ConsumerWidget {
   const TodoScreen({super.key});
 
+  // Вспомогательный метод для получения цвета по приоритету
+  Color _getPriorityColor(int p) {
+    switch (p) {
+      case 1:
+        return Colors.red;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.blue;
+      default:
+        return Colors.grey.shade400;
+    }
+  }
+
   void _openAddTaskSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -29,36 +43,30 @@ class TodoScreen extends ConsumerWidget {
     final filter = ref.watch(selectedProjectFilterProvider);
     final projects = ref.watch(projectsStreamProvider).value ?? [];
 
+    // Динамический заголовок
     String title = 'Сегодня';
     if (filter == 'inbox') {
-       title = 'Входящие';
+      title = 'Входящие';
     } else if (filter != 'today') {
-    // Пытаемся найти имя проекта в списке загруженных проектов
-    try {
-      title = projects.firstWhere((p) => p.id == filter).name;
-    } catch (_) {
-      title = 'Проект';
+      try {
+        title = projects.firstWhere((p) => p.id == filter).name;
+      } catch (_) {
+        title = 'Проект';
+      }
     }
-  }
 
     return Scaffold(
       backgroundColor: Colors.white,
-      drawer: TodoDrawer(
-        onAddTask: () => _openAddTaskSheet(context),
-      ),
+      drawer: const TodoDrawer(),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text(
-          'Сегодня',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.redAccent),
-            onPressed: () => _openAddTaskSheet(context),
-          ),
           IconButton(
             icon: const Icon(Icons.more_horiz),
             onPressed: () {},
@@ -81,6 +89,11 @@ class TodoScreen extends ConsumerWidget {
               return ListTile(
                 leading: Checkbox(
                   value: task.isDone,
+                  // Обновленные свойства чекбокса для отображения приоритета
+                  side: BorderSide(
+                    color: task.isDone ? Colors.grey : _getPriorityColor(task.priority),
+                    width: 2,
+                  ),
                   activeColor: Colors.grey,
                   shape: const CircleBorder(),
                   onChanged: (val) {
@@ -122,7 +135,7 @@ class TodoScreen extends ConsumerWidget {
         backgroundColor: Colors.redAccent,
         shape: const CircleBorder(),
         onPressed: () => _openAddTaskSheet(context),
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
     );
   }
@@ -133,20 +146,7 @@ class TodoScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 16),
-          InkWell(
-            onTap: () => _openAddTaskSheet(context),
-            child: Row(
-              children: [
-                Icon(Icons.add, color: Colors.grey.shade400),
-                const SizedBox(width: 8),
-                Text(
-                  'Добавить задачу',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 32),
           Expanded(
             child: Center(
               child: Column(
@@ -164,7 +164,7 @@ class TodoScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Сегодня вы выполнили 0 задач',
+                    'Сегодня вы выполнили все задачи',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
