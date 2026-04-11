@@ -6,8 +6,9 @@ class TaskModel {
   final String description;
   final bool isDone;
   final DateTime createdAt;
-  final DateTime? dueDate;  // НОВОЕ: Дата завершения
+  final DateTime? dueDate;
   final int priority;
+  final String projectId; // Связь с проектом
 
   TaskModel({
     required this.id,
@@ -16,7 +17,8 @@ class TaskModel {
     this.isDone = false,
     required this.createdAt,
     this.dueDate,
-    this.priority = 4,
+    this.priority = 4,        // По умолчанию приоритет самый низкий (4)
+    this.projectId = 'inbox', // По умолчанию кидаем в "Входящие"
   });
 
   factory TaskModel.fromMap(Map<String, dynamic> map, String documentId) {
@@ -26,10 +28,9 @@ class TaskModel {
       description: map['description'] ?? '',
       isDone: map['isDone'] ?? false,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
-      dueDate: map['deadline'] != null 
-          ? (map['deadline'] as Timestamp).toDate() 
-          : null,
+      dueDate: map['dueDate'] != null ? (map['dueDate'] as Timestamp).toDate() : null,
       priority: map['priority'] ?? 4,
+      projectId: map['projectId'] ?? 'inbox', 
     );
   }
 
@@ -39,8 +40,9 @@ class TaskModel {
       'description': description,
       'isDone': isDone,
       'createdAt': Timestamp.fromDate(createdAt),
-      'deadline': dueDate != null ? Timestamp.fromDate(dueDate!) : null,
+      'dueDate': dueDate != null ? Timestamp.fromDate(dueDate!) : null,
       'priority': priority,
+      'projectId': projectId,
     };
   }
 
@@ -50,15 +52,17 @@ class TaskModel {
     bool? isDone,
     DateTime? dueDate,
     int? priority,
+    String? projectId,
   }) {
     return TaskModel(
       id: id,
-      createdAt: createdAt,
+      createdAt: createdAt, // Эти поля не меняются, передаем старые
       title: title ?? this.title,
       description: description ?? this.description,
       isDone: isDone ?? this.isDone,
       dueDate: dueDate ?? this.dueDate,
       priority: priority ?? this.priority,
+      projectId: projectId ?? this.projectId,
     );
   }
 }

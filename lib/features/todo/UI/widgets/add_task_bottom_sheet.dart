@@ -15,13 +15,19 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
   final _descController = TextEditingController();
   final _focusNode = FocusNode();
 
-  // НОВЫЕ ПЕРЕМЕННЫЕ СОСТОЯНИЯ
-  DateTime? _selectedDate;
-  int _selectedPriority = 4; // По умолчанию приоритет обычный (4)
+  // Состояние выбранного проекта (по умолчанию 'inbox')
+  String _selectedProjectId = 'inbox';
 
   @override
   void initState() {
     super.initState();
+    // Небольшой лайфхак: если пользователь уже находится внутри какого-то проекта,
+    // логично сразу предложить ему этот проект для новой задачи.
+    final currentFilter = ref.read(selectedProjectFilterProvider);
+    if (currentFilter != 'today' && currentFilter != 'inbox') {
+      _selectedProjectId = currentFilter;
+    }
+    
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) _focusNode.requestFocus();
     });
@@ -34,54 +40,17 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
     _focusNode.dispose();
     super.dispose();
   }
-
-  // НОВЫЙ МЕТОД: Выбор даты
-  Future<void> _selectDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.redAccent, // Цвет в стиле Todoist
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
-  }
-
-  // Вспомогательный метод для определения цвета флажка
-  Color _getPriorityColor(int priority) {
-    switch (priority) {
-      case 1: return Colors.red;
-      case 2: return Colors.orange;
-      case 3: return Colors.blue;
-      default: return Colors.grey;
-    }
-  }
-
+  
   void _submitTask() {
     final title = _titleController.text.trim();
     if (title.isEmpty) return;
 
-    // НОВОЕ: Передаем дату и приоритет в модель
     final newTask = TaskModel(
-      id: '', 
+      id: '',
       title: title,
       description: _descController.text.trim(),
       createdAt: DateTime.now(),
-      dueDate: _selectedDate,
-      priority: _selectedPriority,
+      projectId: _selectedProjectId, // Используем выбранный ID
     );
 
     ref.read(todoRepositoryProvider).addTask(newTask);
@@ -90,6 +59,9 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Получаем список проектов для выпадающего списка
+    final projectsAsync = ref.watch(projectsStreamProvider);
+
     return Padding(
       padding: EdgeInsets.only(
         left: 20, 
@@ -118,56 +90,31 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
               border: InputBorder.none,
             ),
           ),
+          const SizedBox(height: 12),
+          
+          // СЕЛЕКТОР ПРОЕКТА
+          projectsAsync.when(
+            data: (projects) => _buildProjectPicker(projects),
+            loading: () => const LinearProgressIndicator(),
+            error: (_, __) => const Text('Ошибка загрузки проектов'),
+          ),
+
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  // КНОПКА ДАТЫ
-                  ActionChip(
-                    avatar: Icon(Icons.calendar_today_outlined, size: 16, color: _selectedDate != null ? Colors.green : Colors.grey),
-                    label: Text(
-                      _selectedDate != null 
-                          // Форматируем дату вручную (дд.мм)
-                          ? '${_selectedDate!.day.toString().padLeft(2, '0')}.${_selectedDate!.month.toString().padLeft(2, '0')}'
-                          : 'Сегодня',
-                      style: TextStyle(color: _selectedDate != null ? Colors.green : Colors.grey),
-                    ),
-                    backgroundColor: Colors.transparent,
-                    side: BorderSide(color: Colors.grey.shade300),
-                    onPressed: () => _selectDate(context),
+                  IconButton(
+                    onPressed: () {}, 
+                    icon: const Icon(Icons.calendar_today_outlined, color: Colors.grey),
                   ),
-                  const SizedBox(width: 8),
-
-                  // КНОПКА ПРИОРИТЕТА (Вызов всплывающего меню)
-                  PopupMenuButton<int>(
-                    initialValue: _selectedPriority,
-                    onSelected: (value) => setState(() => _selectedPriority = value),
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(value: 1, child: Row(children: [Icon(Icons.flag, color: Colors.red), SizedBox(width: 8), Text('Приоритет 1')])),
-                      const PopupMenuItem(value: 2, child: Row(children: [Icon(Icons.flag, color: Colors.orange), SizedBox(width: 8), Text('Приоритет 2')])),
-                      const PopupMenuItem(value: 3, child: Row(children: [Icon(Icons.flag, color: Colors.blue), SizedBox(width: 8), Text('Приоритет 3')])),
-                      const PopupMenuItem(value: 4, child: Row(children: [Icon(Icons.flag_outlined, color: Colors.grey), SizedBox(width: 8), Text('Приоритет 4')])),
-                    ],
-                    child: ActionChip(
-                      avatar: Icon(
-                        _selectedPriority == 4 ? Icons.flag_outlined : Icons.flag, 
-                        size: 16, 
-                        color: _getPriorityColor(_selectedPriority)
-                      ),
-                      label: Text(
-                        'P$_selectedPriority',
-                        style: TextStyle(color: _getPriorityColor(_selectedPriority)),
-                      ),
-                      backgroundColor: Colors.transparent,
-                      side: BorderSide(color: Colors.grey.shade300),
-                      onPressed: null, // Нажатие обрабатывает PopupMenuButton
-                    ),
+                  IconButton(
+                    onPressed: () {}, 
+                    icon: const Icon(Icons.flag_outlined, color: Colors.grey),
                   ),
                 ],
               ),
-              // КНОПКА ОТПРАВКИ
               IconButton.filled(
                 onPressed: _submitTask,
                 style: IconButton.styleFrom(backgroundColor: Colors.redAccent),
@@ -176,6 +123,44 @@ class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // Виджет выбора проекта (PopupMenuButton — это лаконично и удобно)
+  Widget _buildProjectPicker(List projects) {
+    // Находим имя текущего выбранного проекта для отображения на кнопке
+    String currentProjectName = 'Входящие';
+    if (_selectedProjectId != 'inbox') {
+      try {
+        currentProjectName = projects.firstWhere((p) => p.id == _selectedProjectId).name;
+      } catch (_) {}
+    }
+
+    return PopupMenuButton<String>(
+      onSelected: (id) => setState(() => _selectedProjectId = id),
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'inbox', child: Text('📥 Входящие')),
+        ...projects.map((p) => PopupMenuItem(
+          value: p.id,
+          child: Text('# ${p.name}'),
+        )),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.list, size: 16, color: Colors.grey.shade600),
+            const SizedBox(width: 8),
+            Text(currentProjectName, style: TextStyle(color: Colors.grey.shade700)),
+            const Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }
